@@ -7,10 +7,10 @@ DATE="$(TZ=Asia/Jakarta date +%Y%m%d%H%M%S)"
 KERNEL_NAME="Rk${BUILD_TYPE}-${DATE}.zip"
 
 function KERNEL_COMPILE() {
-	# Set environment variables
-	export USE_CCACHE=1
-	export KBUILD_BUILD_HOST=f-fucek
-	export KBUILD_BUILD_USER=ZhangYao
+	if [ "$1" == "install" ]; then
+		# Download required package
+		sudo apt update -y && sudo apt upgrade -y && sudo apt install nano bc ccache bison ca-certificates curl flex gcc git libc6-dev libssl-dev openssl python-is-python3 ssh wget zip zstd sudo make clang gcc-arm-linux-gnueabi software-properties-common build-essential libarchive-tools gcc-aarch64-linux-gnu -y && sudo apt install build-essential -y && sudo apt install libssl-dev libffi-dev libncurses5-dev zlib1g zlib1g-dev libreadline-dev libbz2-dev libsqlite3-dev make gcc -y && sudo apt install pigz -y && sudo apt install python2 -y && sudo apt install python3 -y && sudo apt install cpio -y && sudo apt install lld -y && sudo apt install llvm -y && sudo apt-get install g++-aarch64-linux-gnu -y && sudo apt install libelf-dev -y && sudo apt install neofetch -y && neofetch
+	fi
 
 	# Create output directory and do a clean build
 	rm -rf out && mkdir -p out
