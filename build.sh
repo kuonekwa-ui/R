@@ -1,42 +1,60 @@
 #!/bin/bash
+SECONDS=0
 
-function compile() 
-{
+# Set kernel name
+BUILD_TYPE="KSu"
+DATE="$(TZ=Asia/Jakarta date +%Y%m%d%H%M%S)"
+KERNEL_NAME="Rk${BUILD_TYPE}-${DATE}.zip"
 
-source ~/.bashrc && source ~/.profile
-export LC_ALL=C && export USE_CCACHE=1
-ccache -M 100G
-export ARCH=arm64
-export KBUILD_BUILD_HOST=neolit
-export KBUILD_BUILD_USER="sarthakroy2002"
-git clone --depth=1 https://github.com/sarthakroy2002/android_prebuilts_clang_host_linux-x86_clang-7612306 clang
-git clone --depth=1 https://github.com/sarthakroy2002/prebuilts_gcc_linux-x86_aarch64_aarch64-linaro-7 los-4.9-64
-git clone --depth=1 https://github.com/sarthakroy2002/linaro_arm-linux-gnueabihf-7.5 los-4.9-32
+function KERNEL_COMPILE() {
+	# Set environment variables
+	export USE_CCACHE=1
+	export KBUILD_BUILD_HOST=f-fucek
+	export KBUILD_BUILD_USER=ZhangYao
 
-[ -d "out" ] && rm -rf out || mkdir -p out
+	# Create output directory and do a clean build
+	rm -rf out && mkdir -p out
 
-make O=out ARCH=arm64 RMX2020_defconfig
+	# Download clang if not present
+	git clone --depth=1 https://gitlab.com/sarthakroy2002/android_prebuilts_clang_host_linux-x86_clang-r437112b clang
+   git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 los-4.9-64
+   git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 los-4.9-32
 
-PATH="${PWD}/clang/bin:${PATH}:${PWD}/los-4.9-32/bin:${PATH}:${PWD}/los-4.9-64/bin:${PATH}" \
-make -j$(nproc --all) O=out \
+	# Add clang bin directory to PATH
+	export PATH="${PWD}/clang/bin:${PATH}:${PWD}/los-4.9-32/bin:${PATH}:${PWD}/los-4.9-64/bin:${PATH}"
+
+	# Make the config
+	make O=out ARCH=arm64 RMX2020_defconfig
+
+	# Build the kernel with clang and log output
+	make -j$(nproc --all) O=out \
                       ARCH=arm64 \
                       CC="clang" \
                       CLANG_TRIPLE=aarch64-linux-gnu- \
-                      CROSS_COMPILE="${PWD}/los-4.9-64/bin/aarch64-linux-gnu-" \
-                      CROSS_COMPILE_ARM32="${PWD}/los-4.9-32/bin/arm-linux-gnueabihf-" \
+                      CROSS_COMPILE="${PWD}/los-4.9-64/bin/aarch64-linux-android-" \
+                      CROSS_COMPILE_ARM32="${PWD}/los-4.9-32/bin/arm-linux-androideabi-" \
                       CONFIG_NO_ERROR_ON_MISMATCH=y
 }
 
-function zupload()
-{
-git clone --depth=1 https://github.com/sarthakroy2002/AnyKernel3.git AnyKernel
-cp out/arch/arm64/boot/Image.gz-dtb AnyKernel
-cd AnyKernel
-zip -r9 Test-OSS-KERNEL-RMX2020-NEOLIT.zip *
-#curl --upload-file Test-OSS-KERNEL-RMX2020-NEOLIT.zip https://transfer.sh/
-curl -sL https://git.io/file-transfer | sh
-./transfer wet Test-OSS-KERNEL-RMX2020-NEOLIT.zip
+function KERNEL_RESULT() {
+	# Create anykernel
+	rm -rf anykernel
+	git clone https://github.com/muhammmadnantaa-hub/AnyKernel.git anykernel
+
+	# Copying image
+	cp out/arch/arm64/boot/Image.gz-dtb anykernel
+
+	# Created zip kernel
+	cd anykernel && zip -r9 "${KERNEL_NAME}" *
+
+	# Upload kernel
+	RESPONSE=$(curl -s -F "file=@${KERNEL_NAME}" "https://store1.gofile.io/contents/uploadfile" \
+	|| curl -s -F "file=@${KERNEL_NAME}" "https://store2.gofile.io/contents/uploadfile")
+	DOWNLOAD_LINK=$(echo "$RESPONSE" | grep -oP '"downloadPage":"\K[^"]+')
+	echo -e "\nDownload link: $DOWNLOAD_LINK"
 }
 
-compile
-zupload
+# Run functions
+KERNEL_COMPILE "$1"
+KERNEL_RESULT
+echo -e "Completed in $((SECONDS / 60)) minute(s) and $((SECONDS % 60)) second(s) !\n"
